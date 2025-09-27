@@ -5,9 +5,8 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include_directories(
-    "/Users/zhiyong/mytools/ocm-loader/include/ocmloader/geojson"
-    "/Users/zhiyong/mytools/ocm-loader/include/ocmloader"
-    "${PROJECT_SOURCE_DIR}/include/geojson"
+    "${PROJECT_SOURCE_DIR}/include/ocmloader/geojson"
+    "${PROJECT_SOURCE_DIR}/include/ocmloader"
     "/opt/homebrew/Cellar/nlohmann-json/3.12.0/include"
     "/Users/zhiyong/mydev/ocm-access-manager-cpp/build/final-install-image/include"
     )

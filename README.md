@@ -6,15 +6,23 @@ OCM Loader is a OCMAM based C++ application which can be used by OCM Viewer to d
 2. Download OCM data according to a coordinate point or bounding box
 3. Download OCM data according to a filter
 
+## Project Dependencies
+1. OCM Access Manager 
+2. nlohmann-json
+3. cmake
+
 ## Build Procedures
-1. In ocm-loader directory, run the following commands
+1. Download OCM Access Manager and extract it
+2. Download nlohmann-json and install it 
+3. Modify ocm-loader/CMakeLists.txt -> include_directories to make sure the ocmam and nlohmann-json configured correctly
+4. In ocm-loader directory, run the following commands
       ```bash
         mkdir build
         cd build
         cmake ..
         make -j4
         ```
- 2. Then 2 excecutable files are generated in build/bin folder
+5. Then 2 excecutable files are generated in build/bin folder
     ```
     ocm-loader
     ├── build
