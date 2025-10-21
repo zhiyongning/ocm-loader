@@ -67,12 +67,19 @@ private:
         cache_settings.disk_path_mutable = m_settings.cache_folder+"/MutableCache";
         cache_settings.disk_path_protected = m_settings.cache_folder+"/ProtectCache";
 
+        olp::client::RetrySettings retry_settings;
+        retry_settings.transfer_timeout = std::chrono::seconds(120);
+        retry_settings.timeout =  180;
+        retry_settings.max_attempts = 6;
+
+
         auto task_scheduler_unique = olp::client::OlpClientSettingsFactory::CreateDefaultTaskScheduler(4u);
         auto task_scheduler = std::shared_ptr<olp::thread::TaskScheduler>(std::move(task_scheduler_unique));
 
         const auto server  = DataStoreServerBuilder()
                        .WithCustomCacheSettings(cache_settings)
                        .WithCustomTaskScheduler(task_scheduler)
+                       .WithCustomRetrySettings(retry_settings)
                        .Build();
 
         server->Init();

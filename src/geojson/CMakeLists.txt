@@ -4,6 +4,7 @@ add_library(ocmloader-geojson
     RoadDataToGeoJsonConverter.cpp
     RoutingDataToGeoJsonConverter.cpp
     SearchDataToGeoJsonConverter.cpp
+    CommonDataConverter.cpp
     TimeDomainParser.cpp
 )
 

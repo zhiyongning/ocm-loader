@@ -208,14 +208,14 @@ json convert_special_speed(const SpecialSpeedSituation& s) {
 
 
 json convertInternal(
-    const clientmap::decoder::IsaSegmentLayer& segmentLayer,
+    const clientmap::decoder::IsaSegmentLayer* segmentLayer,
     const clientmap::decoder::IsaSegmentAttributeLayer& attributeLayer, 
     const clientmap::decoder::IsaSegmentGeometryLayer& geometryLayer,  
     const clientmap::decoder::IsaForeignSegmentGeometryLayer& foreignGeomLayer, 
-    const clientmap::decoder::IsaForeignSegmentLayer& foreignSegLayer,  
+    const clientmap::decoder::IsaForeignSegmentLayer* foreignSegLayer,  
     const clientmap::decoder::IsaNodeLayer& nodeLayer,
-    const clientmap::decoder::LinkIdMappingLayer& linkIdMapLayer,
-    const clientmap::decoder::SegmentIdMappingLayer& segIdMapLayer,
+    //const clientmap::decoder::LinkIdMappingLayer& linkIdMapLayer,
+    //const clientmap::decoder::SegmentIdMappingLayer& segIdMapLayer,
     const olp::geo::TileKey& tile_key,
     const std::string& output_path,
     const uint32_t& world_bits);
@@ -318,7 +318,7 @@ json ISADataToGeoJsonConverter::convert(const datastore::Response< datastore::Ti
 
     ocm::LayerFinder finder(layer_results);
 
-    const auto& isaSegmentLayer = finder.GetRequiredLayer<clientmap::decoder::IsaSegmentLayer>(clientmap::isa::kIsaSegmentLayerName);
+    const auto* isaSegmentLayer = finder.TryGetLayer<clientmap::decoder::IsaSegmentLayer>(clientmap::isa::kIsaSegmentLayerName);
     const auto* isaSegmenAttributetLayer = finder.TryGetLayer<clientmap::decoder::IsaSegmentAttributeLayer>(clientmap::isa::kIsaSegmentAttributeLayerName);
     const auto* isaGeometryLayer = finder.TryGetLayer<clientmap::decoder::IsaSegmentGeometryLayer>(clientmap::isa::kIsaSegmentGeometryLayerName);
 
@@ -327,16 +327,19 @@ json ISADataToGeoJsonConverter::convert(const datastore::Response< datastore::Ti
   
     const auto* isaNodeLayer = finder.TryGetLayer<clientmap::decoder::IsaNodeLayer>(clientmap::isa::kIsaNodeLayerName);
 
-    const auto* linkIdMapLayer = finder.TryGetLayer<clientmap::decoder::LinkIdMappingLayer>(clientmap::interop::kLinkIdMappingLayerName);
-    const auto* segIdMapLayer = finder.TryGetLayer<clientmap::decoder::SegmentIdMappingLayer>(clientmap::interop::kSegmentIdMappingLayerName);
+    //const auto* linkIdMapLayer = finder.TryGetLayer<clientmap::decoder::LinkIdMappingLayer>(clientmap::interop::kLinkIdMappingLayerName);
+    //const auto* segIdMapLayer = finder.TryGetLayer<clientmap::decoder::SegmentIdMappingLayer>(clientmap::interop::kSegmentIdMappingLayerName);
 
     
 
-    uint32_t world_bits = finder.GetWorldCoordinateBits(clientmap::isa::kIsaSegmentGeometryLayerName);
+    uint32_t world_bits = 24;
+    world_bits = finder.GetWorldCoordinateBits(clientmap::isa::kIsaSegmentGeometryLayerName);
+    if(world_bits == 0)
+        world_bits = finder.GetWorldCoordinateBits(clientmap::isa::kIsaForeignSegmentGeometryLayerName);
    
     return convertInternal(isaSegmentLayer, *isaSegmenAttributetLayer, *isaGeometryLayer, 
-        *isaForeignSegmentGeometryLayer, *isaForeignSegmentLayer, *isaNodeLayer, 
-        *linkIdMapLayer, *segIdMapLayer, tile_key, outPath, world_bits);
+        *isaForeignSegmentGeometryLayer, isaForeignSegmentLayer, *isaNodeLayer, 
+        tile_key, outPath, world_bits);
 
 
 }
@@ -443,14 +446,14 @@ std::string joinLinkIds(const layers::LinkIdMappingLayer::Segment& segment) {
 }
 
 json convertInternal(
-    const clientmap::decoder::IsaSegmentLayer& segLayer,
+    const clientmap::decoder::IsaSegmentLayer* segLayer,
     const clientmap::decoder::IsaSegmentAttributeLayer& attrLayer, // 可选
     const clientmap::decoder::IsaSegmentGeometryLayer& geomLayer,  // 可选
     const clientmap::decoder::IsaForeignSegmentGeometryLayer& foreignGeomLayer, // 可选
-    const clientmap::decoder::IsaForeignSegmentLayer& foreignSegLayer,  // 可选
+    const clientmap::decoder::IsaForeignSegmentLayer* foreignSegLayer,  // 可选
     const clientmap::decoder::IsaNodeLayer& nodeLayer,
-    const clientmap::decoder::LinkIdMappingLayer& linkIdMapLayer,
-    const clientmap::decoder::SegmentIdMappingLayer& segIdMapLayer,
+    //const clientmap::decoder::LinkIdMappingLayer& linkIdMapLayer,
+    //const clientmap::decoder::SegmentIdMappingLayer& segIdMapLayer,
     const olp::geo::TileKey& tile_key,
     const std::string& output_path,
     const uint32_t& world_bits )
@@ -462,164 +465,166 @@ json convertInternal(
     feature_collection["type"] = "FeatureCollection";
     feature_collection["features"] = json::array();
 
-    const size_t num_segments = static_cast<size_t>(segLayer.segments_size());
-    //feature_collection["metadata"]["num_segments"] = num_segments;
 
-    int foreinSegmentSize = foreignSegLayer.segments_size();
-    for(int i = 0; i<foreinSegmentSize; ++i)
+    if(foreignSegLayer)
     {
-        const auto& seg = foreignSegLayer.segments(i);
-        const auto& geom = foreignGeomLayer.segments(i);
-        const auto& tileID = TileIDConverter::XYtoTileId(tile_key.Column(), tile_key.Row(), tile_key.Level());
-        json properties;
-        properties["tile_id"] = tileID;
-        properties["local_id"] = seg.local_id();
-        properties["length"]   = seg.meter_length();
-        properties["host_tile_id"] = seg.host_tile_id();
+        int foreinSegmentSize = foreignSegLayer->segments_size();
+        for(int i = 0; i<foreinSegmentSize; ++i)
+        {
+            const auto& seg = foreignSegLayer->segments(i);
+            const auto& geom = foreignGeomLayer.segments(i);
+            const auto& tileID = TileIDConverter::XYtoTileId(tile_key.Column(), tile_key.Row(), tile_key.Level());
+            json properties;
+            properties["tile_id"] = tileID;
+            properties["local_id"] = seg.local_id();
+            properties["length"]   = seg.meter_length();
+            properties["host_tile_id"] = seg.host_tile_id();
 
-        json geometry;
-        geometry["type"] = "LineString";
-        geometry["coordinates"] = json::array();
-                // === geometry ===
-        json coordinates = json::array();
-        for (const auto& part : geom.parts()) {
-            const auto& line_string = part.geometry();  // <-- 这里需要 LineString.proto 的定义
+            json geometry;
+            geometry["type"] = "LineString";
+            geometry["coordinates"] = json::array();
+                    // === geometry ===
+            json coordinates = json::array();
+            for (const auto& part : geom.parts()) {
+                const auto& line_string = part.geometry();  // <-- 这里需要 LineString.proto 的定义
 
-            int num_coords = line_string.xy_coords_size();
-            for (int j = 0; j < num_coords; j += 2) {
-                    if (j + 1 >= num_coords) break;
+                int num_coords = line_string.xy_coords_size();
+                for (int j = 0; j < num_coords; j += 2) {
+                        if (j + 1 >= num_coords) break;
 
-                    uint32_t x_coord = line_string.xy_coords(j);
-                    uint32_t y_coord = line_string.xy_coords(j + 1);
-                    if(j==0)
-                    {
-                        auto it = nodeMap.find(makeCoordKey(x_coord, y_coord));
-                        const auto* node = (it != nodeMap.end()) ? it->second : nullptr;
+                        uint32_t x_coord = line_string.xy_coords(j);
+                        uint32_t y_coord = line_string.xy_coords(j + 1);
+                        if(j==0)
+                        {
+                            auto it = nodeMap.find(makeCoordKey(x_coord, y_coord));
+                            const auto* node = (it != nodeMap.end()) ? it->second : nullptr;
 
-                        if (node) {
-                         int connectedSegSize = node->connected_segments_size();
-                            for(int i = 0; i < connectedSegSize; i++)
-                            {
-                                const auto& segmentEnd = node->connected_segments(i);
-                                auto segmentIndex = segmentEnd.segment_index();
-                                const auto& segment = nodeLayer.segments(segmentIndex);
-                                if(segment.local_id()==seg.local_id() && segment.host_tile_id() == seg.host_tile_id())
+                            if (node) {
+                            int connectedSegSize = node->connected_segments_size();
+                                for(int i = 0; i < connectedSegSize; i++)
                                 {
-                                    properties["is_segment_start"] = segmentEnd.is_segment_start();
+                                    const auto& segmentEnd = node->connected_segments(i);
+                                    auto segmentIndex = segmentEnd.segment_index();
+                                    const auto& segment = nodeLayer.segments(segmentIndex);
+                                    if(segment.local_id()==seg.local_id() && segment.host_tile_id() == seg.host_tile_id())
+                                    {
+                                        properties["is_segment_start"] = segmentEnd.is_segment_start();
+                                    }
                                 }
-                            }
-                        } 
+                            } 
 
-                    }
+                        }
 
-                    uint32_t I_LNG_TILE = tile_key.Column() << (world_bits - tile_key.Level());
-                    uint32_t I_LNG = I_LNG_TILE + x_coord;
-                    double LNG = (I_LNG * 360.0) / (1 << world_bits) - 180.0;
+                        uint32_t I_LNG_TILE = tile_key.Column() << (world_bits - tile_key.Level());
+                        uint32_t I_LNG = I_LNG_TILE + x_coord;
+                        double LNG = (I_LNG * 360.0) / (1 << world_bits) - 180.0;
 
-                    uint32_t I_LAT_TILE = tile_key.Row() << (world_bits - tile_key.Level());
-                    uint32_t I_LAT = I_LAT_TILE + y_coord;
-                    double LAT = (I_LAT * 360.0) / (1 << world_bits) - 90.0;
+                        uint32_t I_LAT_TILE = tile_key.Row() << (world_bits - tile_key.Level());
+                        uint32_t I_LAT = I_LAT_TILE + y_coord;
+                        double LAT = (I_LAT * 360.0) / (1 << world_bits) - 90.0;
 
-                    geometry["coordinates"].push_back({ LNG, LAT });
+                        geometry["coordinates"].push_back({ LNG, LAT });
+                }
             }
-        }
-    
-        // === feature ===
-        json feature;
-        feature["type"] = "Feature";
-        feature["geometry"] = geometry;
-        feature["properties"] = properties;
-
-
-        feature_collection["features"].push_back(feature);
-    }
-
-    int n = segLayer.segments_size();
-    for (int i = 0; i < n; ++i) {
-        const auto& seg = segLayer.segments(i);
-        const auto& geom = geomLayer.segments(i);
-        const auto& attr = attrLayer.segments(i);
-       // const auto& linkIds = linkIdMapLayer.segments(i);
-        const auto& hmcIdSeg =  segIdMapLayer.segments(i);
         
+            // === feature ===
+            json feature;
+            feature["type"] = "Feature";
+            feature["geometry"] = geometry;
+            feature["properties"] = properties;
 
-       // auto linkIdStr = joinLinkIds(linkIds);
 
-
-        // === properties ===
-        const auto& tileID = TileIDConverter::XYtoTileId(tile_key.Column(), tile_key.Row(), tile_key.Level());
-        json properties;
-        properties["tile_id"] = tileID;
-        properties["local_id"] = seg.local_id();
-        properties["length"]   = seg.meter_length();
-        properties["host_tile_id"] = seg.host_tile_id();
-       // properties["road_link_ids"] = linkIdStr;
-        properties["hmc_id"] = hmcIdSeg.hmc_id();
-       // properties["part_number"] = 
-        json attributes = json::array();
-        for (const auto& attr : attr.attributes()) {
-            attributes.push_back(convert_attribute(attr));
+            feature_collection["features"].push_back(feature);
         }
-        properties["attributes"] = attributes;
-
-        json geometry;
-        geometry["type"] = "LineString";
-        geometry["coordinates"] = json::array();
-                // === geometry ===
-        json coordinates = json::array();
-        for (const auto& part : geom.parts()) {
-            const auto& line_string = part.geometry();  // <-- 这里需要 LineString.proto 的定义
-
-            int num_coords = line_string.xy_coords_size();
-            for (int j = 0; j < num_coords; j += 2) {
-                    if (j + 1 >= num_coords) break;
-
-                    uint32_t x_coord = line_string.xy_coords(j);
-                    uint32_t y_coord = line_string.xy_coords(j + 1);
-
-                    if(j==0)
-                    {
-                        auto it = nodeMap.find(makeCoordKey(x_coord, y_coord));
-                        const auto* node = (it != nodeMap.end()) ? it->second : nullptr;
-
-                        if (node) {
-                         int connectedSegSize = node->connected_segments_size();
-                            for(int i = 0; i < connectedSegSize; i++)
-                            {
-                                const auto& segmentEnd = node->connected_segments(i);
-                                auto segmentIndex = segmentEnd.segment_index();
-                                const auto& segment = nodeLayer.segments(segmentIndex);
-                                if(segment.local_id()==seg.local_id() && segment.host_tile_id() == seg.host_tile_id())
-                                {
-                                    properties["is_segment_start"] = segmentEnd.is_segment_start();
-                                }
-                            }
-                        } 
-                    }
-
-                    uint32_t I_LNG_TILE = tile_key.Column() << (world_bits - tile_key.Level());
-                    uint32_t I_LNG = I_LNG_TILE + x_coord;
-                    double LNG = (I_LNG * 360.0) / (1 << world_bits) - 180.0;
-
-                    uint32_t I_LAT_TILE = tile_key.Row() << (world_bits - tile_key.Level());
-                    uint32_t I_LAT = I_LAT_TILE + y_coord;
-                    double LAT = (I_LAT * 360.0) / (1 << world_bits) - 90.0;
-
-                    geometry["coordinates"].push_back({ LNG, LAT });
-            }
-        }
-    
-        // === feature ===
-        json feature;
-        feature["type"] = "Feature";
-        feature["geometry"] = geometry;
-
-
-        feature["properties"] = properties;
-
-        feature_collection["features"].push_back(feature);
     }
+    if(segLayer)
+    {
+        int n = segLayer->segments_size();
+        for (int i = 0; i < n; ++i) {
+            const auto& seg = segLayer->segments(i);
+            const auto& geom = geomLayer.segments(i);
+            const auto& attr = attrLayer.segments(i);
+        // const auto& linkIds = linkIdMapLayer.segments(i);
+         //   const auto& hmcIdSeg =  segIdMapLayer.segments(i);
+            
 
+        // auto linkIdStr = joinLinkIds(linkIds);
+
+
+            // === properties ===
+            const auto& tileID = TileIDConverter::XYtoTileId(tile_key.Column(), tile_key.Row(), tile_key.Level());
+            json properties;
+            properties["tile_id"] = tileID;
+            properties["local_id"] = seg.local_id();
+            properties["length"]   = seg.meter_length();
+            properties["host_tile_id"] = seg.host_tile_id();
+        // properties["road_link_ids"] = linkIdStr;
+         //   properties["hmc_id"] = hmcIdSeg.hmc_id();
+        // properties["part_number"] = 
+            json attributes = json::array();
+            for (const auto& attr : attr.attributes()) {
+                attributes.push_back(convert_attribute(attr));
+            }
+            properties["attributes"] = attributes;
+
+            json geometry;
+            geometry["type"] = "LineString";
+            geometry["coordinates"] = json::array();
+                    // === geometry ===
+            json coordinates = json::array();
+            for (const auto& part : geom.parts()) {
+                const auto& line_string = part.geometry();  // <-- 这里需要 LineString.proto 的定义
+
+                int num_coords = line_string.xy_coords_size();
+                for (int j = 0; j < num_coords; j += 2) {
+                        if (j + 1 >= num_coords) break;
+
+                        uint32_t x_coord = line_string.xy_coords(j);
+                        uint32_t y_coord = line_string.xy_coords(j + 1);
+
+                        if(j==0)
+                        {
+                            auto it = nodeMap.find(makeCoordKey(x_coord, y_coord));
+                            const auto* node = (it != nodeMap.end()) ? it->second : nullptr;
+
+                            if (node) {
+                            int connectedSegSize = node->connected_segments_size();
+                                for(int i = 0; i < connectedSegSize; i++)
+                                {
+                                    const auto& segmentEnd = node->connected_segments(i);
+                                    auto segmentIndex = segmentEnd.segment_index();
+                                    const auto& segment = nodeLayer.segments(segmentIndex);
+                                    if(segment.local_id()==seg.local_id() && segment.host_tile_id() == seg.host_tile_id())
+                                    {
+                                        properties["is_segment_start"] = segmentEnd.is_segment_start();
+                                    }
+                                }
+                            } 
+                        }
+
+                        uint32_t I_LNG_TILE = tile_key.Column() << (world_bits - tile_key.Level());
+                        uint32_t I_LNG = I_LNG_TILE + x_coord;
+                        double LNG = (I_LNG * 360.0) / (1 << world_bits) - 180.0;
+
+                        uint32_t I_LAT_TILE = tile_key.Row() << (world_bits - tile_key.Level());
+                        uint32_t I_LAT = I_LAT_TILE + y_coord;
+                        double LAT = (I_LAT * 360.0) / (1 << world_bits) - 90.0;
+
+                        geometry["coordinates"].push_back({ LNG, LAT });
+                }
+            }
+        
+            // === feature ===
+            json feature;
+            feature["type"] = "Feature";
+            feature["geometry"] = geometry;
+
+
+            feature["properties"] = properties;
+
+            feature_collection["features"].push_back(feature);
+        }
+    }
         OLP_SDK_LOG_INFO(kLogTag, "完成转换 GeoJson...");
         return feature_collection;
 

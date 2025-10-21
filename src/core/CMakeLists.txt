@@ -6,6 +6,7 @@ find_package(here.ocm-access-manager-cpp REQUIRED)
 add_library(ocmloader-core
     OcmMapEngine.cpp
     TileIDConverter.cpp
+    FileUtils.cpp
 )
 
 # 包含路径

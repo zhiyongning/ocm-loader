@@ -17,7 +17,7 @@ using json = nlohmann::json;
 namespace isa_converter {
 
  namespace datastore = olp::clientmap::datastore;
- // 注意：你的 ocm 命名空间在源码中是 ning::maps::ocm（你原来写的是这样），保留如下：
+
  namespace ocm = ning::maps::ocm;
 
 class ISADataToGeoJsonConverter {

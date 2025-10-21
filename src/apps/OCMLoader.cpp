@@ -3,6 +3,8 @@
 #include "RoadDataToGeoJsonConverter.hpp"
 #include "ISADataToGeoJsonConverter.hpp"
 #include "RoutingDataToGeoJsonConverter.hpp"
+#include "CommonDataConverter.hpp"
+#include "FileUtils.hpp"
 #include <fstream>
 #include <stdexcept>
 #include <string>
@@ -13,22 +15,21 @@
 #include <olp/core/geo/coordinates/GeoRectangle.h>
 
 using namespace std;
-using namespace ning::maps::ocm;
+//using namespace ning::maps::ocm;
 isa_converter::ISADataToGeoJsonConverter isaConverter;
 road_converter::RoadDataToGeoJsonConverter renderingConverter;
 routing_converter::RoutingDataToGeoJsonConverter routingConverter;
+common_converter::CommonDataConverter commonConverter;
 
-#ifdef _WIN32
-const char PATH_SEP = '\\';
-#else
-const char PATH_SEP = '/';
-#endif
 
 // 返回相对 geodata 目录下的文件路径
-std::string getFilePath(const std::string& filename) {
-    return std::string(".") + PATH_SEP + "geodata" + PATH_SEP + filename;
+std::string getGeoDataFilePath(const std::string& filename) {
+    return FileUtils::getFilePath(filename, "geodata");
 }
 
+std::string getRawDataFilePath(const std::string& filename) {
+    return FileUtils::getFilePath(filename, "rawdata");
+}
 std::string getDiskCachePath() {
     return std::string(".") + PATH_SEP + "diskcache" + PATH_SEP;
 }
@@ -449,15 +450,18 @@ int main(int argc, char* argv[]) {
     //Examples
     //1. OCMLoader isa point:13.08836,52.33812
     //2. OCMLoader rendering bbox:13.08836,52.33812,13.761,52.6755
+    //3. OCMLoader isa tile:377546919
     //OCMLoader isa point
 //Berlin: 52.5308, 13.3847
 
-    string layerGroupName = "isa";
+   string layerGroupName = "isa";
+   //string layerGroupName = "ehorizon";
+   //string layerGroupName = "routing";
    //string area = "bbox:121.50673, 25.10969,121.55205, 25.14746"; //Whole Taiwan
    //string area = "bbox:120.01465, 21.88189 ,122.14600, 25.38374";
-    //string area = "point:121.50673,25.10969";
-    std::string area = "point: 114.1477,22.3602";
-    
+    string area = "point:121.50673,25.10969";
+    //std::string area = "point:2.8976,50.2210";
+   // std::string area = "tile:377546919";
     //string area = "point:121.416435,25.061654";
     //std::string filterStr = "AND(forward_speed_limit=30)";
     //std::string filterStr = "AND(functional_class=functional_class_1)";
@@ -520,7 +524,11 @@ int main(int argc, char* argv[]) {
         if (coords.size() == 4) {
             tileKeys = processBBox(layerGroupName, coords[0], coords[1], coords[2], coords[3]);
         }
-    } else {
+    } else if(area.find("tile:" == 0)){
+         string tileId = area.substr(5); // 去掉 "tile:"
+         kTileKey = TileKeyFromTileId(tileId);
+    } 
+    else {
         cerr << "Unknown area format: " << area << endl;
     }
 
@@ -556,7 +564,7 @@ int main(int argc, char* argv[]) {
         layers.push_back(clientmap::isa::kIsaForeignSegmentLayerName);
         layers.push_back(clientmap::isa::kIsaNodeLayerName);
        // layers.push_back(clientmap::interop::kLinkIdMappingLayerName);
-        layers.push_back(clientmap::interop::kSegmentIdMappingLayerName);
+        //layers.push_back(clientmap::interop::kSegmentIdMappingLayerName);
 
     }
     else if("rendering" == layerGroupName)
@@ -570,13 +578,39 @@ int main(int argc, char* argv[]) {
     {
         layers.push_back(clientmap::routing::kSegmentLayerName);
         layers.push_back(clientmap::routing::kSegmentAttributeLayerName);
-        //layers.push_back(clientmap::routing::kSegmentGeometryLayerName);
-                layers.push_back(clientmap::interop::kSegmentIdMappingLayerName);
+        layers.push_back(clientmap::routing::kAdministrativeRoutingContextLayerName);
+        layers.push_back(clientmap::routing::kEnvironmentalZoneLayerName);
+        layers.push_back(clientmap::routing::kNodeLayerName);
+        layers.push_back(clientmap::routing::kPermittedManeuverLayerName);
+        layers.push_back(clientmap::routing::kRestrictedManeuverLayerName);
+        layers.push_back(clientmap::routing::kSegmentConnectionLayerName);
+        layers.push_back(clientmap::routing::kSegmentReferenceLayerName);
+        layers.push_back(clientmap::routing::kSegmentTollStructureLayerName);
+        layers.push_back(clientmap::routing::kTollCostLayerName);
+    }
+    else if("interop" == layerGroupName)
+    {
+        layers.push_back(clientmap::interop::kSegmentIdMappingLayerName);
+        layers.push_back(clientmap::interop::kLinkIdMappingLayerName);
     }
     else if("search" == layerGroupName)
     {
         layers.push_back(clientmap::search::kAdministrativeUnitLayerName);
         layers.push_back(clientmap::search::kAdministrativeUnitIndexLayerName);
+    }
+    else if("ehorizon" == layerGroupName)
+    {
+        layers.push_back(clientmap::ehorizon::kSegmentGeometryLayerName);
+        layers.push_back(clientmap::ehorizon::kForeignSegmentGeometryLayerName);
+        layers.push_back(clientmap::ehorizon::kForeignSegmentLayerName);
+        layers.push_back(clientmap::ehorizon::kForeignLaneLayerName);
+        layers.push_back(clientmap::ehorizon::kForeignSegmentAttributeLayerName);
+        layers.push_back(clientmap::ehorizon::kForeignSegmentGeometryAccuracyLayerName);
+        layers.push_back(clientmap::ehorizon::kForeignSegmentOvertakeAttributeLayerName);
+        layers.push_back(clientmap::ehorizon::kForeignTrafficSignalLayerName);
+        layers.push_back(clientmap::ehorizon::kForeignTrafficSignLayerName);
+        layers.push_back(clientmap::ehorizon::kForeignVariableSpeedSignLayerName);
+
     }
 
     if(!tileKeys.empty())
@@ -600,7 +634,7 @@ int main(int argc, char* argv[]) {
 
                 if ("isa" == layerGroupName)
                 {
-                    std::string outpath =  getFilePath("isa.geojson");
+                    std::string outpath =  getGeoDataFilePath("isa.geojson");
                     json feature_collection = isaConverter.convert(load_response, tileKey, outpath);
                      appendFeaturesToGeoJSON(outpath, feature_collection, first, finalJson);
 
@@ -612,7 +646,7 @@ int main(int argc, char* argv[]) {
                 }
                 else if ("rendering" == layerGroupName)
                 {
-                     std::string outpath =  getFilePath("data.geojson");
+                     std::string outpath =  getGeoDataFilePath("data.geojson");
                     json feature_collection = renderingConverter.convert(load_response, tileKey, outpath);
                      appendFeaturesToGeoJSON(outpath, feature_collection, first, finalJson);
 
@@ -623,23 +657,18 @@ int main(int argc, char* argv[]) {
 
                     OLP_SDK_LOG_INFO_F(kLogTag, "瓦片数据成功写入 %s", outpath.c_str());
                 }
-                else if("routing" == layerGroupName)
-                {
-                     std::string outpath =  getFilePath("routing.geojson");
-                   json feature_collection = routingConverter.convert(load_response, tileKey, outpath);
-                     appendFeaturesToGeoJSON(outpath, feature_collection, first, finalJson);
 
-                    if (exceedFileLimit(outpath, 50)) { // 50MB
-                        std::cout << "文件超过 50MB，停止写入\n";
-                        break;
-                    }
-
-                    OLP_SDK_LOG_INFO_F(kLogTag, "瓦片数据成功写入 %s", outpath.c_str());
-                }
 
                 first = false; // 后续写都走追加
                 tileLoaded ++;
-         // cout << "Total Tile size : " << tileKeys.size() << "  Loaded size:" << tileLoaded << endl;
+
+
+                 //Write raw json data into file
+            std::string  fileName = kTileKey.ToHereTile() +"-"+ layerGroupName+ ".json";
+            std::string outpath =  getRawDataFilePath(fileName);
+            commonConverter.convert(load_response, kTileKey, outpath);
+             OLP_SDK_LOG_INFO_F(kLogTag, "瓦片数据成功写入 %s", outpath.c_str());
+
             }catch(...)
             {
                   OLP_SDK_LOG_INFO_F(kLogTag, "Error in load tile.");
@@ -657,7 +686,7 @@ int main(int argc, char* argv[]) {
         const datastore::Response< datastore::TileLoadResult > load_response = engine.FetchTileAsync(kTileKey, layers);
         if("isa" == layerGroupName)
         {
-            std::string outpath =  getFilePath("isa.geojson");
+            std::string outpath =  getGeoDataFilePath("isa.geojson");
             json feature_collection = isaConverter.convert(load_response, kTileKey, outpath);
              appendFeaturesToGeoJSON(outpath, feature_collection, true, finalJson);
             OLP_SDK_LOG_INFO_F(kLogTag, "瓦片数据成功写入 %s", outpath.c_str());
@@ -666,25 +695,18 @@ int main(int argc, char* argv[]) {
         }
         else if("rendering" == layerGroupName)
         {
-             std::string outpath =  getFilePath("data.geojson");
+             std::string outpath =  getGeoDataFilePath("data.geojson");
             json feature_collection = renderingConverter.convert(load_response, kTileKey, outpath);
              appendFeaturesToGeoJSON(outpath, feature_collection, true, finalJson);
             OLP_SDK_LOG_INFO_F(kLogTag, "瓦片数据成功写入 %s", outpath.c_str());
         }
-        else if("routing" == layerGroupName)
-        {
-            std::string outpath =  getFilePath("routing.geojson");
-            json feature_collection = routingConverter.convert(load_response, kTileKey, outpath);
-             appendFeaturesToGeoJSON(outpath, feature_collection, true, finalJson);
-            OLP_SDK_LOG_INFO_F(kLogTag, "瓦片数据成功写入 %s", outpath.c_str());
-        }
-        else if("search" == layerGroupName)
-        {
-            std::string outpath =  getFilePath("routing.geojson");
-            json feature_collection = routingConverter.convert(load_response, kTileKey, outpath);
-             appendFeaturesToGeoJSON(outpath, feature_collection, true, finalJson);
-            OLP_SDK_LOG_INFO_F(kLogTag, "瓦片数据成功写入 %s", outpath.c_str());
-        }
+        
+        //Write raw json data into file
+            std::string  fileName = kTileKey.ToHereTile() +"-"+ layerGroupName+ ".json";
+            std::string outpath =  getRawDataFilePath(fileName);
+            commonConverter.convert(load_response, kTileKey, outpath);
+             OLP_SDK_LOG_INFO_F(kLogTag, "瓦片数据成功写入 %s", outpath.c_str());
+        
     }
 
      cout << "Filter string: " << filterStr << endl;

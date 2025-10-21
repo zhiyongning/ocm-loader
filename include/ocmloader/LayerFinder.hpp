@@ -61,7 +61,8 @@ public:
 
         auto config = it->GetResult().GetConfiguration();
         if (!config) {
-            throw std::runtime_error("Layer has no configuration: " + layer_name);
+             std::cerr << "Layer has no configuration" << std::endl;
+            return 0;
         }
         return config->world_coordinate_bits();
     }
