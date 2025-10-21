@@ -102,7 +102,10 @@ private:
 
 
         auto catalog_handle = client.AddCatalog(
-            m_settings.catalog_hrn, ClientCatalogSettings{m_settings.catalog_version});
+            m_settings.catalog_hrn, 
+            ClientCatalogSettings{static_cast<int64_t>(m_settings.catalog_version)}
+        );
+
         if (!catalog_handle) {
             OLP_SDK_LOG_ERROR_F("OcmMapEngineImpl",
                                 "Failed to add catalog to client: %s",
