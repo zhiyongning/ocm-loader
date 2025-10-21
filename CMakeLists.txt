@@ -9,7 +9,7 @@ include_directories(
     "${PROJECT_SOURCE_DIR}/include/ocmloader/geojson"
     "${PROJECT_SOURCE_DIR}/include/ocmloader"
     "/opt/homebrew/Cellar/nlohmann-json/3.12.0/include"
-    "/Users/zhiyong/mydev/ocm-access-manager-cpp/build/final-install-image/include"
+    "${PROJECT_SOURCE_DIR}/../../mydev/ocm-access-manager-cpp/build/final-install-image/include"
     )
 
 

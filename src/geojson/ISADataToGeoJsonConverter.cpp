@@ -726,16 +726,21 @@ bool protoToJsonFile(const clientmap::decoder::AdministrativeRoutingContextLayer
 
     std::string json_str;
     // 关键修正：使用absl::Status接收返回值
+    /* Workaround of compiling codes on Windows 
     absl::Status status = google::protobuf::util::MessageToJsonString(
         proto_msg, &json_str, json_options
     );
-    
+    */
+    (void)google::protobuf::util::MessageToJsonString(
+        proto_msg, &json_str, json_options
+    );
+    /*
     if (!status.ok()) {
         // 获取错误信息的方式也需要调整为absl的接口
         std::cerr << "Proto转JSON失败: " << status.message() << std::endl;
         return false;
     }
-
+    */
     std::ofstream fout(json_file_path);
     if (!fout.is_open()) {
         std::cerr << "无法打开文件: " << json_file_path << std::endl;
