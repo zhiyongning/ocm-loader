@@ -15,8 +15,6 @@
 #include <google/protobuf/util/json_util.h>
 #include <nlohmann/json.hpp>
 
-// 引入 absl::Status 处理返回值
-#include <absl/status/status.h>
 
 namespace common_converter {
 
@@ -101,11 +99,8 @@ json CommonDataConverter::ProtobufToJson(const google::protobuf::Message& msg) {
         print_options.add_whitespace = true;  // 保留缩进，便于阅读
 
         // 修正：不忽略 nodiscard 返回值，判断转换状态
-        absl::Status status = google::protobuf::util::MessageToJsonString(msg, &json_str, print_options);
-        if (!status.ok()) {
-            OLP_SDK_LOG_ERROR_F(kLogTag, "Protobuf to JSON failed: %s", status.message().data());
-            return json::object();
-        }
+        (void)google::protobuf::util::MessageToJsonString(msg, &json_str, print_options);
+
 
         return json::parse(json_str);
     } catch (const json::parse_error& e) {

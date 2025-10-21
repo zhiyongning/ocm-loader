@@ -674,11 +674,8 @@ json convertInternalForAdminRoutingContext(
             {"min_speed_motorways", speed_limits.min_speed_motorways()},
             // ... 其他字段（按实际定义补充）
            // {"max_speed_raining", speed_limits.max_speed_raining()},
-            {"max_speed_raining_value", speed_limits.max_speed_raining_value()},
-            {"max_speed_auto_trailer_motorway_value", speed_limits.auto_trailer_motorway()},
-            {"max_speed_auto_trailer_motorway_value", speed_limits.auto_trailer_motorway()},
-            {"max_speed_auto_trailer_motorway_value", speed_limits.auto_trailer_motorway()},
-            {"max_speed_auto_trailer_motorway_value", speed_limits.auto_trailer_motorway()}
+            {"max_speed_raining_value", speed_limits.max_speed_raining_value()}
+
             //{"max_speed_raining_bitmask", SpeedLimitRainingBitMaskToString(speed_limits.max_speed_raining())}
         };
         feature["properties"]["speed_limits"] = speed_limits_json;
