@@ -10,7 +10,7 @@ include_directories(
     "${PROJECT_SOURCE_DIR}/include/ocmloader/geojson"
     "${PROJECT_SOURCE_DIR}/include/ocmloader"
     "/opt/homebrew/Cellar/nlohmann-json/3.12.0/include"
-    "${PROJECT_SOURCE_DIR}/../../mydev/ocm-access-manager-cpp/build/final-install-image/include"
+    #"${PROJECT_SOURCE_DIR}/../nlohmann/include"
     )
 
 
@@ -18,4 +18,17 @@ include_directories(
 add_subdirectory(src/geojson)
 add_subdirectory(src/core)
 add_subdirectory(src/apps)
+
+
+# Key Notes to build in Windows
+#   
+#.  1. Delete "build" folder
+#.  2. Update CMakeLists.txt in current and core folter to corresponding folder
+#   3.1. Executing command: C:\Users\zning\Downloads\cmake-4.1.0-rc1-windows-x86_64\bin\cmake.EXE 
+#.     -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE --no-warn-unused-cli -S C:/Users/zning/ocm-loader 
+#      -B c:/Users/zning/ocm-loader/build -G "Visual Studio 17 2022" -T host=x86 -A x64
+#.  3.2 Visual Studio > Cmake > Configure > Choose "x86_x64" kit and "release"
+#.  4.1. [proc] Executing command: C:\Users\zning\Downloads\cmake-4.1.0-rc1-windows-x86_64\bin\cmake.EXE 
+#         --build c:/Users/zning/ocm-loader/build --config Release --target ALL_BUILD -j 8 --
+#.  4.2 Visual Studio > Cmake > Configure > Choose Release
 

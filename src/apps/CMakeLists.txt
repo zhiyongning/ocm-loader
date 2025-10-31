@@ -1,6 +1,5 @@
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-list(APPEND CMAKE_PREFIX_PATH "/Users/zhiyong/mydev/ocm-access-manager-cpp/build/final-install-image/lib/cmake")
 
 find_package(here.ocm-access-manager-cpp REQUIRED)
 

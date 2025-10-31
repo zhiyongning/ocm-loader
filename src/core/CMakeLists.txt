@@ -1,5 +1,6 @@
 # 找到 ocm-access-manager-cpp
-list(APPEND CMAKE_PREFIX_PATH "/Users/zhiyong/mydev/ocm-access-manager-cpp/build/final-install-image/lib/cmake")
+list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/../../mydev/ocm-access-manager-cpp/build/final-install-image/lib/cmake")
+#list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/../ocmam/ocmam-static-reldebug/cmake")
 find_package(here.ocm-access-manager-cpp REQUIRED)
 
 # 定义库
