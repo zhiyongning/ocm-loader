@@ -467,7 +467,7 @@ int main(int argc, char* argv[]) {
         "lg:isa",                      // argv[1]
         //"point:13.08836,52.33812",     // argv[2]
         "tile:377893287",
-       // "version:196"                  // argv[3]
+        "version:default"                  // argv[3]
         // 可根据需要添加更多默认参数
     };
         // 存储最终使用的参数（要么用命令行传入的，要么用默认的）
