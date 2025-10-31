@@ -63,8 +63,6 @@ const uint32_t zoom_level = 14u;
 /// HERE Resource Name of the OCM catalog to download the data from.
 constexpr auto kCatalogHrn = "hrn:here:data::olp-here:ocm";
 
-/// The version of the OCM catalog to download the data from.
-constexpr auto kCatalogVersion = 180;
 
 //121.5222654, 25.0320536
 /// The tag for log messages.
@@ -445,49 +443,99 @@ void calculateRoadLength()
     }
    
 }
+pair<string, string> splitKeyVal(const string& s) {
+    size_t colonPos = s.find(':');
+    if (colonPos == string::npos) {
+        // 如果没有冒号，key为整个字符串，value为空
+        return {s, ""};
+    }
+    string key = s.substr(0, colonPos);
+    string value = s.substr(colonPos + 1);
+    return {key, value};
+}
+
 int main(int argc, char* argv[]) {
     //Arg pattern: programName, layerGroupName, area
     //Examples
-    //1. OCMLoader isa point:13.08836,52.33812
-    //2. OCMLoader rendering bbox:13.08836,52.33812,13.761,52.6755
-    //3. OCMLoader isa tile:377546919
-    //OCMLoader isa point
-//Berlin: 52.5308, 13.3847
+    //1. ocm-loader lg:isa point:13.08836,52.33812 tile:377893287 version:188
+    //2. ocm-loader lg:rendering bbox:13.08836,52.33812,13.761,52.6755 version:180 filter:AND(forward_speed_limit=30)
+    //3. ocm-loader tile:377893287 version:188
+    //Default parameter, when command line parameter is not enough
+    //    //std::string filterStr = "AND(functional_class=functional_class_1)";
+    const std::vector<const char*> default_args = {
+        "ocm-loader",                  // argv[0]：程序名
+        "lg:isa",                      // argv[1]
+        //"point:13.08836,52.33812",     // argv[2]
+        "tile:377893287",
+       // "version:196"                  // argv[3]
+        // 可根据需要添加更多默认参数
+    };
+        // 存储最终使用的参数（要么用命令行传入的，要么用默认的）
+    std::vector<char*> final_argv;
+    int final_argc;
 
-   string layerGroupName = "isa";
-   //string layerGroupName = "ehorizon";
-   //string layerGroupName = "routing";
-   //string area = "bbox:121.50673, 25.10969,121.55205, 25.14746"; //Whole Taiwan
-   //string area = "bbox:120.01465, 21.88189 ,122.14600, 25.38374";
-    string area = "point:121.50673,25.10969";
-    //std::string area = "point:2.8976,50.2210";
-   // std::string area = "tile:377546919";
-    //string area = "point:121.416435,25.061654";
-    //std::string filterStr = "AND(forward_speed_limit=30)";
-    //std::string filterStr = "AND(functional_class=functional_class_1)";
-      std::string filterStr = "";
     if (argc < 3) {
-        cerr << "Usage: " << argv[0] << " <layerGroupName> <area>" << endl;
-        //return 1;
+        // 命令行参数不足，使用默认参数
+        final_argc = default_args.size();
+        // 复制默认参数到final_argv（转为char*类型）
+        for (const char* arg : default_args) {
+            final_argv.push_back(strdup(arg)); // 复制字符串到堆
+        }
+        final_argv.push_back(nullptr); // 末尾添加nullptr（符合标准）
+    } else {
+        // 命令行参数足够，直接使用
+        final_argc = argc;
+        for (int i = 0; i < argc; ++i) {
+            final_argv.push_back(argv[i]); // 直接引用命令行参数
+        }
+        final_argv.push_back(nullptr);
     }
-    else{
-     layerGroupName = argv[1];
-     area = argv[2];
-     if(argv[3])
-        filterStr = argv[3];
-     else
-        filterStr = "";
+
+        std::cout << "Used Parameters:：" << std::endl;
+    for (int i = 0; i < final_argc; ++i) {
+        std::cout << "final_argv[" << i << "] = " << final_argv[i] << std::endl;
     }
 
 
-    
-    cout << "Layer Group: " << layerGroupName << endl;
-    cout << "Area Input: " << area << endl;
 
-    if(filterStr.find("filter:") == 0)
-        filterStr = filterStr.substr(7);
+    int catalogVersion = 0;
+    string layerGroupName = "isa";
+    string point = "13.08836,52.33812";
+    string bbox = "13.08836,52.33812,13.761,52.6755";
+    string filterStr = "";
+
+    map<string, string> params;
+
+    for (int i = 1; i < final_argc; ++i) {
+        string param = final_argv[i];
+        // 兼容 C++14：用 pair 的 first/second 提取键值，替代结构化绑定
+        pair<string, string> keyVal = splitKeyVal(param);
+        string key = keyVal.first;  // 提取 key
+        string value = keyVal.second; // 提取 value
+        params[key] = value;
+    }
+
+    // 示例：打印解析结果
+    cout << "Parameters list:" << endl;
+    for (const auto& item : params) { // C++11 范围 for 循环，C++14 兼容
+        cout << "key: " << item.first << ", value: " << item.second << endl;
+    }
     
-     cout << "Filter string: " << filterStr << endl;
+    if(params.find("lg") != params.end())
+    {
+        layerGroupName = params["lg"];
+
+        if (params.find("version") != params.end()) {
+            catalogVersion = atoi(params["version"].c_str());
+        }
+        cout << "CatalogVersion = " << catalogVersion << endl;
+
+        if (params.find("filter") != params.end()) {
+            filterStr = params["filter"];
+        }
+
+    }
+
 
     // 按 ; 分割顶层 AND / OR
     std::stringstream ss(filterStr);
@@ -505,16 +553,14 @@ int main(int argc, char* argv[]) {
     }
 
 
-
-    // 判断是 point 还是 bbox
-    if (area.find("point:") == 0) {
-        string coordPart = area.substr(6); // 去掉 "point:"
+    if (params.find("point") != params.end() ){
+        string coordPart = params["point"]; 
         vector<double> coords = parseCoordinates(coordPart);
         if (coords.size() == 2) {
            kTileKey =  processPoint(layerGroupName, coords[0], coords[1]);
         }
-    } else if (area.find("bbox:") == 0) {
-        string coordPart = area.substr(5); // 去掉 "bbox:"
+    } else if (params.find("bbox") != params.end()) {
+        string coordPart = params["bbox"];
         vector<double> coords;
         stringstream ss(coordPart);
         string token;
@@ -524,14 +570,16 @@ int main(int argc, char* argv[]) {
         if (coords.size() == 4) {
             tileKeys = processBBox(layerGroupName, coords[0], coords[1], coords[2], coords[3]);
         }
-    } else if(area.find("tile:" == 0)){
-         string tileId = area.substr(5); // 去掉 "tile:"
+    } else if (params.find("tile") != params.end()) 
+    {
+         string tileId = params["tile"];
          kTileKey = TileKeyFromTileId(tileId);
-    } 
-    else {
-        cerr << "Unknown area format: " << area << endl;
     }
-
+    else {
+        cerr << "Parameter wrong. "  << endl;
+        return 0;
+    }
+ 
     //tileKeys = {TileKeyFromTileId("377782696"), TileKeyFromTileId("377782525")};
         // ------------------------------
     // 步骤 1：配置 HereMapEngine 参数
@@ -539,7 +587,7 @@ int main(int argc, char* argv[]) {
     ning::maps::ocm::Settings settings;
     settings.offline_enable = false;       // 在线模式（若需离线，设为 true 并配置缓存路径）
     settings.catalog_hrn = kCatalogHrn; // 替换为您的目录 HRN（如 "here:catalog:your-domain:your-catalog"）
-    settings.catalog_version = kCatalogVersion;   // 目录版本（或具体版本号，如 "2024-01-01"）
+    settings.catalog_version = catalogVersion;   // 目录版本（或具体版本号，如 "2024-01-01"）
     settings.access_key_id = kHereAccessKeyId;   // 替换为您的访问密钥 ID
     settings.path_to_credentials_file = kPathToCredentialsFile;
     settings.access_key_secret = kHereAccessKeySecret; // 替换为您的访问密钥 Secret

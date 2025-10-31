@@ -52,6 +52,29 @@ private:
     }
 
 
+    /// Get latest version of the catalog
+    boost::optional< int64_t >
+    GetLatestVersion( const std::shared_ptr< olp::clientmap::datastore::DataStoreServer >& server,
+                    const CatalogHandle 	catalog_handle)
+    {
+
+
+        std::promise< datastore::Response< int64_t > > version_promise;
+        server->GetLatestVersion( catalog_handle,
+                                [&]( datastore::Response< int64_t > response ) {
+                                    version_promise.set_value( std::move( response ) );
+                                } );
+
+        auto version_future = version_promise.get_future( );
+        const auto version_response = version_future.get( );
+        if ( !version_response )
+        {
+            return boost::none;
+        }
+
+        return version_response.GetResult( );
+    }
+
     Response<datastore::TileLoadResult>  FetchTileInternal(
         const geo::TileKey& tileKey,
         const TileRequest::Layers& layers) 
@@ -100,12 +123,23 @@ private:
            // return false;
         }
 
+       auto catalogVersion = m_settings.catalog_version;
 
+       if(catalogVersion == 0)
+       {
+          catalogVersion = GetLatestVersion(server, add_server_catalog_response.GetResult()).value_or(0);
+        }
+        
+       if(catalogVersion == 0)
+       {
+        catalogVersion = 196;
+       }
+
+        datastore::AddCatalog(*server, m_settings.catalog_hrn,
+                                  catalogVersion, credentials);
+       
         auto catalog_handle = client.AddCatalog(
-            m_settings.catalog_hrn, 
-            ClientCatalogSettings{static_cast<int64_t>(m_settings.catalog_version)}
-        );
-
+            m_settings.catalog_hrn, ClientCatalogSettings{catalogVersion});
         if (!catalog_handle) {
             OLP_SDK_LOG_ERROR_F("OcmMapEngineImpl",
                                 "Failed to add catalog to client: %s",
