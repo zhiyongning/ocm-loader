@@ -9,8 +9,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include_directories(
     "${PROJECT_SOURCE_DIR}/include/ocmloader/geojson"
     "${PROJECT_SOURCE_DIR}/include/ocmloader"
-    "/opt/homebrew/Cellar/nlohmann-json/3.12.0/include"
-    #"${PROJECT_SOURCE_DIR}/../nlohmann/include"
+    "/opt/homebrew/Cellar/nlohmann-json/3.12.0/include" #MacBook
+    #"${PROJECT_SOURCE_DIR}/.."                         #Windows, ensure "nlohmann/json.hpp" in this folder
     )
 
 
